@@ -16,7 +16,7 @@ import { float, vec3, vec4, bool } from '../../nodes/tsl/TSLBase.js';
 import AONode from '../../nodes/lighting/AONode.js';
 import { lightingContext } from '../../nodes/lighting/LightingContextNode.js';
 import IrradianceNode from '../../nodes/lighting/IrradianceNode.js';
-import { depth, viewZToLogarithmicDepth, viewZToOrthographicDepth } from '../../nodes/display/ViewportDepthNode.js';
+import { depth, viewZToLogarithmicDepth, viewZToOrthographicDepth, perspectiveDepthToViewZ, orthographicDepthToViewZ, logarithmicDepthToViewZ } from '../../nodes/display/ViewportDepthNode.js';
 import { cameraFar, cameraNear, cameraProjectionMatrix } from '../../nodes/accessors/Camera.js';
 import { clipping, clippingAlpha, hardwareClipping } from '../../nodes/accessors/ClippingNode.js';
 import NodeMaterialObserver from './manager/NodeMaterialObserver.js';
@@ -1130,6 +1130,29 @@ class NodeMaterial extends Material {
 		const fogNode = builder.fogNode;
 
 		if ( fogNode ) {
+
+			// When the material overrides the fragment depth, the fog distance should honor it too.
+
+			if ( this.depthNode !== null ) {
+
+				const { camera, renderer } = builder;
+				const depthNode = this.depthNode;
+
+				builder.context.getViewZ = () => {
+
+					if ( camera.isPerspectiveCamera ) {
+
+						return renderer.logarithmicDepthBuffer === true
+							? logarithmicDepthToViewZ( depthNode, cameraNear, cameraFar )
+							: perspectiveDepthToViewZ( depthNode, cameraNear, cameraFar );
+
+					}
+
+					return orthographicDepthToViewZ( depthNode, cameraNear, cameraFar );
+
+				};
+
+			}
 
 			output.assign( outputNode );
 
